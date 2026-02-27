@@ -1,0 +1,22 @@
+[project]
+name = "simon-game"
+version = "0.1.0"
+description = "Web-based version of the Simon Game"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "loguru>=0.7.3",
+    "pydantic>=2.12.5",
+]
+
+[uv.tool]
+managed = true
+
+[dependency-groups]
+dev = [
+    "mypy>=1.19.1",
+    "pre-commit>=4.5.1",
+    "pyright>=1.1.408",
+    "pytest>=9.0.2",
+    "ruff>=0.15.4",
+]
