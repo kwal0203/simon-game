@@ -1,3 +1,5 @@
+# Python stuff
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -60,4 +62,49 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-docs/
+
+
+
+# React stuff
+
+# Dependencies
+node_modules/
+.vite/
+
+# Build artifacts and temporary files
+build/
+dist/
+public/build/
+.awcache
+*.tgz
+*.zip
+
+# Logs and debug files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Local history, caches, and configuration files
+.eslintcache
+.stylelintcache
+.npm
+.yarn-integrity
+.idea
+.vscode
+*.iml
+
+# OS and Editor files
+.DS_Store
+.hg
+.lock-wscript
+.nyc_output
+coverage/
