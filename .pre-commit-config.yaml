@@ -24,3 +24,21 @@ repos:
     rev: v2.4.1
     hooks:
       - id: codespell
+
+  - repo: local
+    hooks:
+      - id: local-biome-check
+        name: biome check
+        entry: npx biome check --write --files-ignore-unknown=true
+        language: system
+        types: [text]
+        files: "\\.(jsx?|tsx?|c(js|ts)|m(js|ts)|d\\.(ts|cts|mts)|jsonc?|css|svelte|vue|astro|graphql|gql)$"
+
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: uv run python -m pytest -q
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
