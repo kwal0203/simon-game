@@ -43,3 +43,12 @@ repos:
         language: system
         pass_filenames: false
         stages: [pre-commit]
+
+  - repo: local
+    hooks:
+      - id: web-typecheck
+        name: web typecheck
+        entry: bash -lc 'cd apps/web && npm run typecheck'
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
