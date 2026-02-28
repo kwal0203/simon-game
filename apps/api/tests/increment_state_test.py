@@ -1,9 +1,22 @@
-from apps.api.main import increment_state
+from fastapi.testclient import TestClient
+from apps.api.main import app
+from httpx import Response
+
+client: TestClient = TestClient(app)
+client.cookies.set("player_id", "22222222-2222-2222-2222-222222222222")
 
 
-def test_increment_state_handles_existing_value():
-    assert increment_state(7) == 8
+def test_get_leaderboard() -> None:
+    r: Response = client.get("/v1/leaderboard")
+    assert r.status_code == 200
 
 
-def test_increment_state_adds_one():
-    assert increment_state(0) == 1
+def test_post_score() -> None:
+    r: Response = client.post(
+        "/v1/scores",
+        headers={"idempotency_key": "11111111-1111-1111-1111-111111111111"},
+        json={"score": 10, "display_name": "Kanos"},
+    )
+    assert r.status_code == 201
+    body = r.json()
+    assert "score_response" in body

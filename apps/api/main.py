@@ -1,10 +1,13 @@
-def main():
-    print("Hello from simon-game!")
+from fastapi import FastAPI, status
+
+app = FastAPI()
 
 
-def increment_state(state: int) -> int:
-    return state + 1
+@app.get("/v1/leaderboard")
+def get_leaderboard() -> dict[str, list[int]]:
+    return {"scores": []}
 
 
-if __name__ == "__main__":
-    main()
+@app.post("/v1/scores", status_code=status.HTTP_201_CREATED)
+def submit_score() -> dict[str, int]:
+    return {"score_response": 99, "rank": 1}
