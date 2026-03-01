@@ -14,6 +14,15 @@ def test_get_leaderboard() -> None:
     assert "scores" in body
     assert isinstance(body["scores"], list)
 
+    assert [row["score"] for row in body["scores"]] == [84, 75, 35, 12]
+    assert [row["rank"] for row in body["scores"]] == [1, 2, 3, 4]
+    assert [row["display_name"] for row in body["scores"]] == [
+        "Jack",
+        "cutok",
+        "The lad",
+        "Alice",
+    ]
+
 
 def test_post_score() -> None:
     r: Response = client.post(

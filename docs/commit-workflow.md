@@ -17,6 +17,7 @@ uv run ruff check . --fix
 uv run ruff format .
 pre-commit run end-of-file-fixer --all-files
 pre-commit run trailing-whitespace --all-files
+npm --prefix apps/web run test:run
 uv run python -m pytest -q
 git add -A
 git commit -m "your message"

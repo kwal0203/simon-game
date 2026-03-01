@@ -10,15 +10,19 @@ from .schemas import (
     LeaderboardEntry,
 )
 from uuid import UUID, uuid4
+from apps.api.repositories.leaderboard import get_top_100
 
 app = FastAPI()
 
 
 @app.get("/v1/leaderboard", response_model=LeaderboardResponse)
-def get_leaderboard() -> LeaderboardResponse:
-    return LeaderboardResponse(
-        scores=[LeaderboardEntry(score=10, rank=1, display_name="Kanos")]
-    )
+def get_leaderboard(db: Session = Depends(get_db)) -> LeaderboardResponse:
+    rows = get_top_100(db=db)
+    entries = [
+        LeaderboardEntry(score=row.score, rank=rank + 1, display_name=row.display_name)
+        for rank, row in enumerate(rows)
+    ]
+    return LeaderboardResponse(scores=entries)
 
 
 @app.post(
