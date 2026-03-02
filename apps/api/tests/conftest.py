@@ -8,7 +8,11 @@ from collections.abc import Iterator
 
 
 @pytest.fixture(autouse=True)
-def reset_score_entries() -> Iterator[None]:
+def reset_score_entries(request: pytest.FixtureRequest) -> Iterator[None]:
+    if "integration" not in request.keywords:
+        yield
+        return
+
     db = SessionLocal()
     try:
         db.execute(text("TRUNCATE TABLE score_entries;"))
