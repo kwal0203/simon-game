@@ -9,8 +9,8 @@ from .schemas import (
     DBHealthResponse,
     LeaderboardEntry,
 )
-from uuid import UUID, uuid4
-from apps.api.repositories.leaderboard import get_top_100
+from uuid import UUID
+from apps.api.repositories.leaderboard import get_top_100, insert_score_entry
 
 app = FastAPI()
 
@@ -34,8 +34,16 @@ def submit_score(
     payload: SubmitScoreRequest,
     idempotency_key: UUID = Header(...),
     player_id: UUID = Cookie(...),
+    db: Session = Depends(get_db),
 ) -> SubmitScoreResponse:
-    return SubmitScoreResponse(score_id=uuid4(), rank=1)
+    score_id, rank = insert_score_entry(
+        db=db,
+        score=payload.score,
+        player_id=player_id,
+        idempotency_key=idempotency_key,
+        display_name=payload.display_name,
+    )
+    return SubmitScoreResponse(score_id=score_id, rank=rank)
 
 
 @app.get("/health/db", response_model=DBHealthResponse)
