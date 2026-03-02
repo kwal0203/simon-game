@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Header, Cookie
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from .database import get_db
@@ -13,6 +14,14 @@ from uuid import UUID
 from apps.api.repositories.leaderboard import get_top_100, insert_score_entry
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/v1/leaderboard", response_model=LeaderboardResponse)
