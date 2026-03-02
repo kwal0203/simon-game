@@ -8,6 +8,7 @@ export type GameState = {
 };
 export type Event =
     | { type: "START"; nextStep: Step }
+    | { type: "NEXT_ROUND"; nextStep: Step }
     | { type: "SHOW_COMPLETE" }
     | { type: "INPUT"; step: Step }
     | { type: "RESET" };
@@ -24,6 +25,14 @@ export function transition(state: GameState, event: Event): GameState {
         case "START":
             if (state.phase !== "idle") return state;
             return { ...state, phase: "showing", sequence: [...state.sequence, event.nextStep], playerInput: [] };
+
+        case "NEXT_ROUND":
+            if (state.phase !== "showing") return state;
+            return {
+                ...state,
+                sequence: [...state.sequence, event.nextStep],
+                playerInput: [],
+            };
 
         case "SHOW_COMPLETE":
             if (state.phase !== "showing") return state;
