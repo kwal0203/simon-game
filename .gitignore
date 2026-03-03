@@ -108,8 +108,3 @@ lerna-debug.log*
 .lock-wscript
 .nyc_output
 coverage/
-
-# Added by me
-index.html
-script.js
-style.css
