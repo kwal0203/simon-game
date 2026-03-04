@@ -16,8 +16,11 @@ Use this sequence to deploy the Simon Game to the public internet on AWS EC2.
 9. Clone the repository on EC2 (for example: `~/apps/simon-game`).
 10. Start services:
     - `docker compose up --build -d`
-11. Run database migrations:
-    - `docker compose run --rm api uv run alembic upgrade head`
+11. Database migrations:
+    - CI/CD deploys already run migrations automatically via:
+      - `docker compose run --rm migrate`
+    - Manual fallback (only if you are deploying without CI/CD):
+      - `docker compose run --rm migrate`
 12. Configure Nginx + Let's Encrypt certificates, then restart Nginx.
 13. Verify deployment:
     - `http://<domain>` redirects to `https://<domain>`
@@ -99,3 +102,129 @@ docker compose logs nginx --tail=100
 
 9. Validate HTTPS:
    - `curl -Ik https://your-domain.com`
+
+## Milestone 3.1 Detailed: Serve Static Files from CDN (S3 + CloudFront)
+
+Use this when moving frontend static files to CDN while keeping API on EC2.
+
+### Architecture
+
+- CloudFront is the public entrypoint for `electricincubator.com` and `www.electricincubator.com`.
+- Static web files are served from a private S3 bucket via CloudFront OAC.
+- API traffic (`/v1/*`, `/health/db`) is routed by CloudFront to EC2/Nginx origin.
+- Keep frontend API calls same-origin (no `VITE_API_BASE_URL` in production).
+
+### 0) Prerequisites
+
+1. Ensure EC2 API origin is running and healthy before DNS cutover.
+2. Ensure AWS account is allowed to create CloudFront resources.
+   - If blocked with account verification error, open AWS Support case and include the exact error message.
+3. Request an ACM certificate in `us-east-1` for:
+   - `electricincubator.com`
+   - `www.electricincubator.com`
+   - Note: CloudFront requires ACM certs from `us-east-1`. Certbot certs on EC2 cannot be attached to CloudFront.
+
+### 1) Build frontend
+
+```bash
+cd /home/kane/Projects/simon-game/apps/web
+npm ci
+npm run build
+```
+
+### 2) Configure AWS CLI authentication (SSO)
+
+```bash
+aws configure sso
+aws sso login --profile simon-prod
+aws sts get-caller-identity --profile simon-prod
+```
+
+Recommended values:
+- SSO session name: `simon-sso`
+- Start URL: your organization IAM Identity Center URL
+- SSO region: your Identity Center region (for this account it was `us-east-2`)
+- Default client region: `us-east-2`
+- Profile name: `simon-prod`
+
+### 3) Upload static files to private S3 bucket
+
+Replace `simon-storage-prod` with your bucket name if different.
+
+```bash
+cd /home/kane/Projects/simon-game/apps/web
+
+aws s3 sync dist/assets s3://simon-storage-prod/assets \
+  --delete \
+  --cache-control "public,max-age=31536000,immutable" \
+  --profile simon-prod
+
+aws s3 cp dist/index.html s3://simon-storage-prod/index.html \
+  --cache-control "no-cache" \
+  --content-type "text/html" \
+  --profile simon-prod
+
+aws s3 sync dist s3://simon-storage-prod \
+  --exclude "assets/*" \
+  --cache-control "no-cache" \
+  --profile simon-prod
+```
+
+S3 bucket rules:
+- Keep `Block Public Access` enabled.
+- Do not add public-read bucket policy.
+
+### 4) Create CloudFront distribution
+
+1. Create distribution (Free plan is fine to start).
+2. Add S3 origin:
+   - Origin type: S3 bucket endpoint (not website endpoint)
+   - Enable private bucket access via OAC (recommended)
+3. Add EC2/Nginx origin:
+   - Origin type: custom origin
+   - Origin domain: EC2 public DNS (or stable domain pointing to EC2)
+4. Behaviors:
+   - Default behavior `/*` -> S3 origin (static)
+   - `/v1/*` -> EC2 origin, caching disabled
+   - `/health/db` -> EC2 origin, caching disabled
+5. Attach ACM certificate from `us-east-1` and set aliases:
+   - `electricincubator.com`
+   - `www.electricincubator.com`
+
+### 5) DNS cutover
+
+1. Point DNS records for `@` and `www` to the CloudFront distribution domain.
+2. Wait for propagation.
+3. Validate end-to-end:
+   - `https://electricincubator.com/` loads frontend
+   - `https://electricincubator.com/v1/leaderboard` returns API response
+   - Score submit and leaderboard read work from browser gameplay flow
+
+### 6) Post-cutover cleanup
+
+1. Optionally remove frontend runtime dependency on Vite dev server in EC2 production path.
+2. Keep EC2/Nginx/API for backend origin only.
+3. Keep existing CI/CD deploy for migrations/API services.
+
+### 7) Deploying future frontend updates
+
+For each frontend deploy:
+1. Build `apps/web/dist`.
+2. Upload to S3 with same cache headers.
+3. Invalidate CloudFront cache:
+
+```bash
+aws cloudfront create-invalidation \
+  --distribution-id <DISTRIBUTION_ID> \
+  --paths "/index.html" "/" \
+  --profile simon-prod
+```
+
+If needed, invalidate `/*` for full refresh (higher cost):
+
+```bash
+aws cloudfront create-invalidation \
+  --distribution-id <DISTRIBUTION_ID> \
+  --paths "/*" \
+  --profile simon-prod
+```
