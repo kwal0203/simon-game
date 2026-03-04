@@ -24,7 +24,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: ${{ secrets.EC2_PORT }}
           script: |
-            set -euo pipefall
+            set -euo pipefail
 
             cd ~/apps/simon-game
             git fetch origin main
