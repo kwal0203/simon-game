@@ -228,3 +228,90 @@ aws cloudfront create-invalidation \
   --paths "/*" \
   --profile simon-prod
 ```
+
+## Milestone 3.1 Alternative: Serve Static Files from CDN (Cloudflare)
+
+Use this path when CloudFront is blocked/unavailable but you still want CDN edge caching in front of the existing EC2 origin.
+
+### Architecture
+
+- Cloudflare proxies `electricincubator.com` and `www.electricincubator.com`.
+- Origin remains EC2/Nginx.
+- Nginx serves built static frontend files and proxies API requests to FastAPI.
+- Cloudflare caches static assets and bypasses API paths.
+
+### 0) Preconditions
+
+1. Ensure production uses static frontend serving from Nginx (not Vite dev server):
+   - `/` serves `index.html` from built `dist`
+   - `/assets/*` serves static files
+   - `/v1/*` and `/health/db` proxy to API
+2. Ensure EC2 security group does not expose unused dev port `5173`.
+
+### 1) Add and onboard domain in Cloudflare
+
+1. In Cloudflare dashboard, onboard domain `electricincubator.com`.
+2. Confirm DNS records exist in Cloudflare zone:
+   - `A` record `@` -> EC2 Elastic IP (Proxy status: Proxied)
+   - `A` record `www` -> EC2 Elastic IP (Proxy status: Proxied) or CNAME to `@`
+3. At Namecheap, change nameservers to the Cloudflare-assigned pair.
+4. Wait for delegation propagation and verify:
+
+```bash
+dig +short NS electricincubator.com @1.1.1.1
+dig +short NS electricincubator.com @8.8.8.8
+```
+
+Expected: both return Cloudflare nameservers (for example `bethany.ns.cloudflare.com`, `leonidas.ns.cloudflare.com`).
+
+### 2) SSL/TLS in Cloudflare
+
+1. Set SSL/TLS mode to `Full` or `Full (strict)` (preferred when origin cert is valid).
+2. Enable `Always Use HTTPS` in SSL/TLS edge settings.
+
+### 3) Create Cloudflare cache rules
+
+In `Caching -> Cache Rules`, add:
+
+1. Bypass API cache:
+   - Match: URI Path starts with `/v1/`
+   - Action: Bypass cache
+2. Bypass health endpoint cache:
+   - Match: URI Path equals `/health/db`
+   - Action: Bypass cache
+3. Cache static assets:
+   - Match: URI Path starts with `/assets/`
+   - Action: Eligible for cache / Cache Everything
+   - Edge TTL: long-lived (or respect origin cache headers)
+
+### 4) Validate CDN behavior
+
+1. Confirm traffic is proxied through Cloudflare:
+
+```bash
+curl -I https://electricincubator.com
+```
+
+Expected headers include `server: cloudflare` and `cf-ray`.
+
+2. Confirm static asset caching:
+
+```bash
+curl -I https://electricincubator.com/assets/<current-built-asset>.js
+curl -I https://electricincubator.com/assets/<current-built-asset>.js
+```
+
+Expected on second request: `cf-cache-status: HIT`.
+
+3. Confirm API is dynamic (not cached):
+
+```bash
+curl -X GET -i https://electricincubator.com/v1/leaderboard
+```
+
+Expected: `200 OK` and `cf-cache-status: DYNAMIC` (or non-HIT equivalent).
+
+### Notes / gotchas
+
+- `curl -I` sends `HEAD`; `/v1/leaderboard` may return `405` with `allow: GET`. Use `curl -X GET -i` for API validation.
+- If you get `404` + `cf-cache-status: HIT` on an asset, you likely cached an old hashed filename. Fetch current asset names from live HTML and retry.
