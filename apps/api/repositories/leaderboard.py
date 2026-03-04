@@ -1,8 +1,13 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
+from sqlalchemy.exc import IntegrityError
 from apps.api.models import ScoreEntry
 from uuid import UUID, uuid4
 from datetime import datetime, UTC
+
+
+class DuplicateScoreSubmissionError(Exception):
+    pass
 
 
 def get_top_100(db: Session) -> list[ScoreEntry]:
@@ -43,6 +48,12 @@ def insert_score_entry(
 
         db.commit()
         return row.score_id, int(rank)
+    except IntegrityError as e:
+        db.rollback()
+        constraint = getattr(getattr(e.orig, "diag", None), "constraint_name", None)
+        if constraint == "uq_idempotency_player":
+            raise DuplicateScoreSubmissionError from e
+        raise
     except Exception:
         db.rollback()
         raise
