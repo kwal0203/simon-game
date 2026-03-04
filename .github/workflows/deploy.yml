@@ -31,26 +31,21 @@ jobs:
             git checkout main
             git pull --ff-only origin main
 
-            # Start DB first
             docker compose up -d db
-
-            # Run one-off migrations
             docker compose run --rm migrate
-
-            # Deploy app services
             docker compose up --build -d api web nginx
 
-            # Basic health check
-            curl -fsS https://www.electricincubator.com/health/db
-
-            for i in {1..20}; do
-              if curl -fsS https://www.electricincubator.com/health/db; then
+            # Wait for services to stabilize
+            for i in {1..30}; do
+              if curl -fsS http://localhost/health/db > /dev/null; then
                 echo "Health check passed"
                 exit 0
               fi
-              echo "Health check failed, retrying ($i/20)..."
-              sleep 3
+              echo "Health check failed ($i/30), retrying..."
+              sleep 2
             done
 
             echo "Health check failed after retries"
+            docker compose ps
+            docker compose logs --tail=200 api nginx
             exit 1
