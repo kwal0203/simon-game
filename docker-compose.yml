@@ -48,5 +48,18 @@ services:
       - web
       - api
 
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile.migrate
+    container_name: simon-migrate
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:localdev@db:5432/simon
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["uv", "run", "alembic", "upgrade", "head"]
+    restart: no
+
 volumes:
   postgres_data:
