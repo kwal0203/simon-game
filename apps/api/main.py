@@ -11,7 +11,11 @@ from .schemas import (
     LeaderboardEntry,
 )
 from uuid import UUID
-from apps.api.repositories.leaderboard import get_top_100, insert_score_entry
+from apps.api.repositories.leaderboard import (
+    get_top_100,
+    insert_score_entry,
+    DuplicateScoreSubmissionError,
+)
 
 app = FastAPI()
 
@@ -45,13 +49,18 @@ def submit_score(
     player_id: UUID = Cookie(...),
     db: Session = Depends(get_db),
 ) -> SubmitScoreResponse:
-    score_id, rank = insert_score_entry(
-        db=db,
-        score=payload.score,
-        player_id=player_id,
-        idempotency_key=idempotency_key,
-        display_name=payload.display_name,
-    )
+    try:
+        score_id, rank = insert_score_entry(
+            db=db,
+            score=payload.score,
+            player_id=player_id,
+            idempotency_key=idempotency_key,
+            display_name=payload.display_name,
+        )
+    except DuplicateScoreSubmissionError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Duplicate score submission."
+        )
     return SubmitScoreResponse(score_id=score_id, rank=rank)
 
 
