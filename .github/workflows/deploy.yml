@@ -42,3 +42,15 @@ jobs:
 
             # Basic health check
             curl -fsS https://www.electricincubator.com/health/db
+
+            for i in {1..20}; do
+              if curl -fsS https://www.electricincubator.com/health/db; then
+                echo "Health check passed"
+                exit 0
+              fi
+              echo "Health check failed, retrying ($i/20)..."
+              sleep 3
+            done
+
+            echo "Health check failed after retries"
+            exit 1
