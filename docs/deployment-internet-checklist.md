@@ -254,6 +254,7 @@ Use this path when CloudFront is blocked/unavailable but you still want CDN edge
 2. Confirm DNS records exist in Cloudflare zone:
    - `A` record `@` -> EC2 Elastic IP (Proxy status: Proxied)
    - `A` record `www` -> EC2 Elastic IP (Proxy status: Proxied) or CNAME to `@`
+   - `A` record `origin` -> EC2 Elastic IP (Proxy status: DNS only / gray cloud)
 3. At Namecheap, change nameservers to the Cloudflare-assigned pair.
 4. Wait for delegation propagation and verify:
 
@@ -263,6 +264,11 @@ dig +short NS electricincubator.com @8.8.8.8
 ```
 
 Expected: both return Cloudflare nameservers (for example `bethany.ns.cloudflare.com`, `leonidas.ns.cloudflare.com`).
+
+CI/CD SSH note:
+- Do not use proxied hostnames (`@` / `www`) for SSH deployments.
+- Set GitHub Actions `EC2_HOST` secret to `origin.electricincubator.com` (or directly to Elastic IP).
+- Keep `origin` as DNS-only so SSH connects directly to EC2 instead of Cloudflare IPs.
 
 ### 2) SSL/TLS in Cloudflare
 
