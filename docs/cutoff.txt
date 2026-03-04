@@ -1,0 +1,4 @@
+1. Add monitoring + alerts
+2. Add rate limiting + security basics
+3. Add load test results and one incident/postmortem
+4. Clean README with architecture + live demo
