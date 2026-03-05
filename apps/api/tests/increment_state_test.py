@@ -5,7 +5,7 @@ from apps.api.main import app
 from apps.api.schemas import SubmitScoreRequest
 from httpx import Response
 from pydantic import ValidationError
-from uuid import UUID
+from uuid import UUID, uuid4
 
 client: TestClient = TestClient(app)
 client.cookies.set("player_id", "22222222-2222-2222-2222-222222222222")
@@ -49,3 +49,21 @@ def test_post_score() -> None:
 
     assert "rank" in body
     assert isinstance(body["rank"], int)
+
+
+@pytest.mark.integration
+def test_post_score_rate_limit_returns_429_after_limit() -> None:
+    rate_limited_status_codes: list[int] = []
+    for idx in range(13):
+        r: Response = client.post(
+            "/v1/scores",
+            headers={
+                "idempotency-key": str(uuid4()),
+                "cf-connecting-ip": "198.51.100.42",
+            },
+            json={"score": 10 + idx, "display_name": "rate-limit-test"},
+        )
+        rate_limited_status_codes.append(r.status_code)
+
+    assert rate_limited_status_codes[:12] == [201] * 12
+    assert rate_limited_status_codes[12] == 429

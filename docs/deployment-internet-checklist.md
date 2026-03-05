@@ -321,3 +321,41 @@ Expected: `200 OK` and `cf-cache-status: DYNAMIC` (or non-HIT equivalent).
 
 - `curl -I` sends `HEAD`; `/v1/leaderboard` may return `405` with `allow: GET`. Use `curl -X GET -i` for API validation.
 - If you get `404` + `cf-cache-status: HIT` on an asset, you likely cached an old hashed filename. Fetch current asset names from live HTML and retry.
+
+## Milestone 3.2 Detailed: Rate-limit `POST /v1/scores` (Cloudflare)
+
+Use this to add edge rate-limiting before requests reach EC2.
+
+### 1) Create Cloudflare rate-limiting rule
+
+1. Open Cloudflare dashboard for `electricincubator.com`.
+2. Go to `Security -> Security rules`.
+3. In `Rate limiting rules`, click `Create rule`.
+4. Configure matcher:
+   - Field: `URI Path`
+   - Operator: `equals`
+   - Value: `/v1/scores`
+5. Configure threshold:
+   - Requests: start with `20`
+   - Period: `1 minute`
+   - Characteristic: per `IP`
+6. Action:
+   - `Block` (only available action in current plan/UI)
+7. Duration/mitigation timeout:
+   - Start with shortest available (for example `1 minute`)
+8. Save and deploy rule.
+
+Note: even without explicit method matching in this UI, `/v1/scores` is a write endpoint in this app and this rule protects score submissions.
+
+### 2) Validate behavior
+
+1. Send repeated score submissions from one IP and confirm requests are blocked after threshold.
+2. Confirm normal users can still submit scores under normal play rate.
+3. Tune threshold based on real usage:
+   - Too strict -> increase requests per minute
+   - Too loose -> reduce requests per minute or increase timeout
+
+### 3) Recommended defense in depth
+
+- Keep Cloudflare edge rule enabled.
+- Also implement app-side rate limiting in FastAPI for `/v1/scores` so protection remains if traffic bypasses CDN/proxy.
