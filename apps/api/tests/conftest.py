@@ -2,7 +2,7 @@ import pytest
 
 from datetime import datetime
 from sqlalchemy import text
-from apps.api.database import SessionLocal
+from apps.api.database import SessionLocalWrite
 from uuid import UUID
 from collections.abc import Iterator
 from fastapi.testclient import TestClient
@@ -21,7 +21,7 @@ def reset_score_entries(request: pytest.FixtureRequest) -> Iterator[None]:
         yield
         return
 
-    db = SessionLocal()
+    db = SessionLocalWrite()
     try:
         db.execute(text("TRUNCATE TABLE score_entries;"))
         db.execute(

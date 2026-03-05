@@ -7,7 +7,7 @@ from starlette.responses import Response
 from contextlib import asynccontextmanager
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-from .database import get_db
+from .database import get_write_db, get_read_db
 from .schemas import (
     LeaderboardResponse,
     SubmitScoreResponse,
@@ -81,7 +81,7 @@ app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
 
 @app.get("/v1/leaderboard", response_model=LeaderboardResponse)
 def get_leaderboard(
-    request: Request, db: Session = Depends(get_db)
+    request: Request, db: Session = Depends(get_read_db)
 ) -> LeaderboardResponse:
     cache_key = "leaderboard:top100"
     redis_client = getattr(request.app.state, "redis", None)
@@ -116,7 +116,7 @@ def submit_score(
     payload: SubmitScoreRequest,
     idempotency_key: UUID = Header(...),
     player_id: UUID = Cookie(...),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_write_db),
 ) -> SubmitScoreResponse:
     try:
         score_id, rank = insert_score_entry(
@@ -140,9 +140,18 @@ def submit_score(
 
 
 @app.get("/health/db", response_model=DBHealthResponse)
-def health_db(db: Session = Depends(get_db)):
+def health_db(db: Session = Depends(get_read_db)):
     try:
         db.execute(text("SELECT 1"))
         return DBHealthResponse(status="Database connection successful")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/health/db/write", response_model=DBHealthResponse)
+def health_write_db(db: Session = Depends(get_write_db)):
+    try:
+        db.execute(text("SELECT 1"))
+        return DBHealthResponse(status="Database (write) connection successful")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
