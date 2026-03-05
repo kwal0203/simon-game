@@ -83,13 +83,12 @@ app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
 def get_leaderboard(
     request: Request, db: Session = Depends(get_db)
 ) -> LeaderboardResponse:
-    # Redis get/set
     cache_key = "leaderboard:top100"
     redis_client = request.app.state.redis
     if redis_client is not None:
         cached = redis_client.get(cache_key)
         if cached:
-            LeaderboardResponse.model_validate_json(cached)
+            return LeaderboardResponse.model_validate_json(cached)
 
     rows = get_top_100(db=db)
     entries = [
