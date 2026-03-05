@@ -84,7 +84,7 @@ def get_leaderboard(
     request: Request, db: Session = Depends(get_db)
 ) -> LeaderboardResponse:
     cache_key = "leaderboard:top100"
-    redis_client = request.app.state.redis
+    redis_client = getattr(request.app.state, "redis", None)
     if redis_client is not None:
         cached = redis_client.get(cache_key)
         if cached:
@@ -132,7 +132,7 @@ def submit_score(
         )
 
     cache_key = "leaderboard:top100"
-    redis_client = request.app.state.redis
+    redis_client = getattr(request.app.state, "redis", None)
     if redis_client is not None:
         redis_client.delete(cache_key)
 
