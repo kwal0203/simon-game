@@ -1,5 +1,8 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Header, Cookie
+from fastapi import FastAPI, Depends, HTTPException, status, Header, Cookie, Request
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from starlette.responses import Response
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from .database import get_db
@@ -17,8 +20,26 @@ from apps.api.repositories.leaderboard import (
     DuplicateScoreSubmissionError,
 )
 
-app = FastAPI()
 
+def get_client_ip(request: Request) -> str:
+    cf_ip = request.headers.get("cf-connecting-ip")
+    if cf_ip:
+        return cf_ip
+
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[0].strip()
+
+    return request.client.host if request.client else "unknown"
+
+
+def rate_limit_handler(request: Request, exc: Exception) -> Response:
+    if isinstance(exc, RateLimitExceeded):
+        return _rate_limit_exceeded_handler(request, exc)
+    raise exc
+
+
+app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -26,6 +47,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+limiter = Limiter(key_func=get_client_ip)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
 
 
 @app.get("/v1/leaderboard", response_model=LeaderboardResponse)
@@ -43,7 +68,11 @@ def get_leaderboard(db: Session = Depends(get_db)) -> LeaderboardResponse:
     status_code=status.HTTP_201_CREATED,
     response_model=SubmitScoreResponse,
 )
+@limiter.limit(  # type: ignore[misc]
+    "12/minute"
+)
 def submit_score(
+    request: Request,
     payload: SubmitScoreRequest,
     idempotency_key: UUID = Header(...),
     player_id: UUID = Cookie(...),
