@@ -54,7 +54,7 @@ async def lifespan(app: FastAPI):
     app.state.redis = redis_client
 
     try:
-        redis_client.ping()  # type: ignore[no-untryped-call]
+        redis_client.ping()  # type: ignore[no-untyped-call]
     except Exception:
         app.state.redis = None
 
@@ -80,13 +80,28 @@ app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
 
 
 @app.get("/v1/leaderboard", response_model=LeaderboardResponse)
-def get_leaderboard(db: Session = Depends(get_db)) -> LeaderboardResponse:
+def get_leaderboard(
+    request: Request, db: Session = Depends(get_db)
+) -> LeaderboardResponse:
+    # Redis get/set
+    cache_key = "leaderboard:top100"
+    redis_client = request.app.state.redis
+    if redis_client is not None:
+        cached = redis_client.get(cache_key)
+        if cached:
+            LeaderboardResponse.model_validate_json(cached)
+
     rows = get_top_100(db=db)
     entries = [
         LeaderboardEntry(score=row.score, rank=rank + 1, display_name=row.display_name)
         for rank, row in enumerate(rows)
     ]
-    return LeaderboardResponse(scores=entries)
+    response = LeaderboardResponse(scores=entries)
+
+    if redis_client is not None:
+        redis_client.set(cache_key, response.model_dump_json(), ex=10)
+
+    return response
 
 
 @app.post(
