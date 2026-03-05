@@ -61,8 +61,7 @@ def test_post_score_rate_limit_returns_429_after_limit() -> None:
                 "idempotency-key": str(uuid4()),
                 "cf-connecting-ip": "198.51.100.42",
             },
-            cookies={"player_id": str(uuid4())},
-            json={"score": 1000 + idx, "display_name": "rate-limit-test"},
+            json={"score": 10 + idx, "display_name": "rate-limit-test"},
         )
         rate_limited_status_codes.append(r.status_code)
 
