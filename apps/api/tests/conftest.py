@@ -5,6 +5,14 @@ from sqlalchemy import text
 from apps.api.database import SessionLocal
 from uuid import UUID
 from collections.abc import Iterator
+from fastapi.testclient import TestClient
+from apps.api.main import app
+
+
+@pytest.fixture
+def client() -> Iterator[TestClient]:
+    with TestClient(app) as c:
+        yield c
 
 
 @pytest.fixture(autouse=True)
