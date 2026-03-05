@@ -1,8 +1,10 @@
+from apps.api.settings import init_settings
 from fastapi import FastAPI, Depends, HTTPException, status, Header, Cookie, Request
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.responses import Response
+from contextlib import asynccontextmanager
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from .database import get_db
@@ -19,6 +21,12 @@ from apps.api.repositories.leaderboard import (
     insert_score_entry,
     DuplicateScoreSubmissionError,
 )
+from redis import Redis
+
+import redis
+import os
+
+init_settings()
 
 
 def get_client_ip(request: Request) -> str:
@@ -39,7 +47,25 @@ def rate_limit_handler(request: Request, exc: Exception) -> Response:
     raise exc
 
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+    redis_client: Redis = redis.from_url(redis_url, decode_responses=True)
+    app.state.redis = redis_client
+
+    try:
+        redis_client.ping()  # type: ignore[no-untryped-call]
+    except Exception:
+        app.state.redis = None
+
+    try:
+        yield
+    finally:
+        if app.state.redis is not None:
+            app.state.redis.close()
+
+
+app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
