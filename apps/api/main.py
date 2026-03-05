@@ -1,8 +1,10 @@
+from apps.api.settings import init_settings
 from fastapi import FastAPI, Depends, HTTPException, status, Header, Cookie, Request
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.responses import Response
+from contextlib import asynccontextmanager
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from .database import get_db
@@ -19,6 +21,12 @@ from apps.api.repositories.leaderboard import (
     insert_score_entry,
     DuplicateScoreSubmissionError,
 )
+from redis import Redis
+
+import redis
+import os
+
+init_settings()
 
 
 def get_client_ip(request: Request) -> str:
@@ -39,7 +47,25 @@ def rate_limit_handler(request: Request, exc: Exception) -> Response:
     raise exc
 
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+    redis_client: Redis = redis.from_url(redis_url, decode_responses=True)
+    app.state.redis = redis_client
+
+    try:
+        redis_client.ping()  # type: ignore[no-untyped-call]
+    except Exception:
+        app.state.redis = None
+
+    try:
+        yield
+    finally:
+        if app.state.redis is not None:
+            app.state.redis.close()
+
+
+app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -54,13 +80,27 @@ app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
 
 
 @app.get("/v1/leaderboard", response_model=LeaderboardResponse)
-def get_leaderboard(db: Session = Depends(get_db)) -> LeaderboardResponse:
+def get_leaderboard(
+    request: Request, db: Session = Depends(get_db)
+) -> LeaderboardResponse:
+    cache_key = "leaderboard:top100"
+    redis_client = request.app.state.redis
+    if redis_client is not None:
+        cached = redis_client.get(cache_key)
+        if cached:
+            return LeaderboardResponse.model_validate_json(cached)
+
     rows = get_top_100(db=db)
     entries = [
         LeaderboardEntry(score=row.score, rank=rank + 1, display_name=row.display_name)
         for rank, row in enumerate(rows)
     ]
-    return LeaderboardResponse(scores=entries)
+    response = LeaderboardResponse(scores=entries)
+
+    if redis_client is not None:
+        redis_client.set(cache_key, response.model_dump_json(), ex=10)
+
+    return response
 
 
 @app.post(
@@ -90,6 +130,12 @@ def submit_score(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Duplicate score submission."
         )
+
+    cache_key = "leaderboard:top100"
+    redis_client = request.app.state.redis
+    if redis_client is not None:
+        redis_client.delete(cache_key)
+
     return SubmitScoreResponse(score_id=score_id, rank=rank)
 
 
