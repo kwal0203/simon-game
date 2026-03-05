@@ -25,6 +25,7 @@ jobs:
           --health-retries 20
 
     env:
+      DATABASE_READ_URL: postgresql+psycopg://postgres:localdev@localhost:5432/simon_test
       DATABASE_WRITE_URL: postgresql+psycopg://postgres:localdev@localhost:5432/simon_test
       REDIS_URL: redis://localhost:6379/0
 
