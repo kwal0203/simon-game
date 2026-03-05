@@ -131,6 +131,12 @@ def submit_score(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Duplicate score submission."
         )
+
+    cache_key = "leaderboard:top100"
+    redis_client = request.app.state.redis
+    if redis_client is not None:
+        redis_client.delete(cache_key)
+
     return SubmitScoreResponse(score_id=score_id, rank=rank)
 
 
