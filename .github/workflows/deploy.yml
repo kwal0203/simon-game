@@ -31,9 +31,8 @@ jobs:
             git checkout main
             git pull --ff-only origin main
 
-            docker compose up -d db
-            docker compose run --rm migrate
-            docker compose up --build -d redis api nginx
+            docker compose --env-file .env.prod run --rm migrate
+            docker compose --env-file .env.prod up --build -d redis api nginx
 
             # Wait for services to stabilize
             for i in {1..30}; do
@@ -46,6 +45,6 @@ jobs:
             done
 
             echo "Health check failed after retries"
-            docker compose ps
-            docker compose logs --tail=200 api nginx
+            docker compose --env-file .env.prod ps
+            docker compose --env-file .env.prod logs --tail=200 api nginx
             exit 1

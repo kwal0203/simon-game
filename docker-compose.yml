@@ -25,8 +25,6 @@ services:
       DATABASE_WRITE_URL: ${DATABASE_WRITE_URL}
       REDIS_URL: ${REDIS_URL}
     depends_on:
-      db:
-        condition: service_healthy
       redis:
         condition: service_healthy
 
@@ -51,9 +49,6 @@ services:
     container_name: simon-migrate
     environment:
       DATABASE_WRITE_URL: ${DATABASE_WRITE_URL}
-    depends_on:
-      db:
-        condition: service_healthy
     command: ["uv", "run", "alembic", "upgrade", "head"]
     restart: no
 
