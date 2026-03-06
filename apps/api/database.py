@@ -1,7 +1,10 @@
 import os
+import logging
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.engine import make_url
 from apps.api.settings import init_settings
 
 init_settings()
@@ -16,6 +19,18 @@ if not DATABASE_READ_URL:
 
 write_engine = create_engine(DATABASE_WRITE_URL)
 read_engine = create_engine(DATABASE_READ_URL)
+
+logger = logging.getLogger("apps.api.database")
+
+
+def _db_target(raw_url: str) -> str:
+    u = make_url(raw_url)
+    return f"{u.host}:{u.port}/{u.database}"
+
+
+logger.info(
+    f"DB routing configured | write={_db_target(DATABASE_WRITE_URL)} | read={_db_target(DATABASE_READ_URL)}"
+)
 
 SessionLocalWrite = sessionmaker(autocommit=False, autoflush=False, bind=write_engine)
 SessionLocalRead = sessionmaker(autocommit=False, autoflush=False, bind=read_engine)
