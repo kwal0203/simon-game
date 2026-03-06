@@ -40,7 +40,7 @@ The actionable tickets. Every task should be small enough to be completed in 1 t
 | 1.5c | React frontend: Integration | Stitch the UI, state machine and database together | 1.1 \- 1.4, 1.5a, 1.5b | 0.25 | Done |
 | 1.6 | Integration | Integrate frontend, backend and database. | 1.3, 1.4, 1.5 | 0.5 days | Done |
 | 1.7 | Gameplay testing | Manual testing of gameplay running on localhost GET and POST endpoints use database appropriately Duplicate scores rejected by database | 1.1, 1.2, 1.3, 1.4 | 0.25 days | Done |
-| 1.7a | Expand automated tests | Add integration tests for GET /v1/leaderboard and POST /v1/scores, plus regression tests for duplicate submission behaviour. | 1.3, 1.4, 1.6 | 0.25 days | To Do |
+| 1.7a | Expand automated tests | Add integration tests for GET /v1/leaderboard and POST /v1/scores, plus regression tests for duplicate submission behaviour. | 1.3, 1.4, 1.6 | 0.25 days | Skip |
 
 ###
 
@@ -61,11 +61,11 @@ The actionable tickets. Every task should be small enough to be completed in 1 t
 
 | Task ID | Task Name | Description | Dependencies | Estimate | Status |
 | :---- | :---- | :---- | :---- | :---- | :---- |
-| 3.1 | CDN | Serve static game assets from a CDN | None | 0.5 days | To Do |
-| 3.2 | Rate-limiting | Update the POST /v1/scores endpoint to apply IP rate limiting | None | 0.5 days | To Do |
-| 3.3 | Redis cache | Dockerize Redis service and put it in front of database. Update GET /v1/leaderboard to check cache first and to read database and write cache upon miss. Update POST /v1/scores to invalidate cache when a new score enters the database | None | 0.5 days | To Do |
-| 3.4 | Scale database reads | Configure PostgreSQL to have N read replicas (start with 1). Update POST /v1/scores to write to primary database. Update GET /v1/leaderboard to hit read replicas (probably already done in 2.3). | 2.2 | 0.5 days | To Do |
-| 3.5 | Validation | Load test using locust to validate p95/p99 latency targets (200ms/500ms read, 300ms write) with 1000 users Test cache stampede using locust Test rate-limiting on the write path using locust. | 2.1 \- 2.4 | 0.5 days | To Do |
+| 3.1 | CDN | Serve static game assets from a CDN | None | 0.5 days | Done |
+| 3.2 | Rate-limiting | Update the POST /v1/scores endpoint to apply IP rate limiting | None | 0.5 days | Done |
+| 3.3 | Redis cache | Define cache contract: key, value shape, TTL, invalidation rule. Dockerize Redis service and put it in front of database. Update GET /v1/leaderboard to check cache first and to read database and write cache upon miss. Update POST /v1/scores to invalidate cache when a new score enters the database | None | 0.5 days | Done |
+| 3.4 | Scale database reads | Configure PostgreSQL to have N read replicas (start with 1). Update POST /v1/scores to write to primary database. Update GET /v1/leaderboard to hit read replicas. | 2.2 | 0.5 days | Done |
+| 3.5 | Validation | Load test using locust to validate p95/p99 latency targets (200ms/500ms read, 300ms write) with 1000 users Test cache stampede using locust Test rate-limiting on the write path using locust. | 2.1 \- 2.4 | 0.5 days | Skip |
 
 ## **4\. Risk Register & Mitigations**
 
