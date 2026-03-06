@@ -21,9 +21,9 @@ services:
       dockerfile: apps/api/Dockerfile
     container_name: simon-api
     environment:
-      DATABASE_READ_URL: postgresql+psycopg://postgres:localdev@db:5432/simon
-      DATABASE_WRITE_URL: postgresql+psycopg://postgres:localdev@db:5432/simon
-      REDIS_URL: redis://redis:6379/0
+      DATABASE_READ_URL: ${DATABASE_READ_URL}
+      DATABASE_WRITE_URL: ${DATABASE_WRITE_URL}
+      REDIS_URL: ${REDIS_URL}
     depends_on:
       db:
         condition: service_healthy
@@ -50,7 +50,7 @@ services:
       dockerfile: apps/api/Dockerfile.migrate
     container_name: simon-migrate
     environment:
-      DATABASE_WRITE_URL: postgresql+psycopg://postgres:localdev@db:5432/simon
+      DATABASE_WRITE_URL: ${DATABASE_WRITE_URL}
     depends_on:
       db:
         condition: service_healthy
